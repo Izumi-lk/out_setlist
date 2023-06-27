@@ -1,0 +1,83 @@
+from google.colab import auth
+auth.authenticate_user()
+import gspread
+from google.auth import default
+creds, _ = default()
+gc = gspread.authorize(creds)
+
+ss_name ="曲メンバー" #スプシのファイル名
+workbook = gc.open(ss_name)
+worksheet_read = workbook.worksheet("セトリ＆メンバー表") #読み込むシート名
+worksheet_write = workbook.worksheet("セトリ案") #書き込むシート名
+
+from collections import defaultdict
+member = defaultdict(set)
+
+all_numbers = worksheet_read.col_values(1)
+
+for i in range(len(all_numbers)):
+    member[all_numbers[i]] = set(worksheet_read.row_values(i+1)[1:])
+print(member)
+
+#セトリ生成早着替え無し
+
+import copy
+
+max_quick_change = int(input("早着替え人数上限:"))
+
+setlist_plans = []
+start = input("1曲目:")
+end = input("最後の曲:")
+draft_all_numbers = all_numbers.copy()
+if end != 'any':
+    draft_all_numbers.remove(end)
+
+if start != 'any':
+    setlist_plans.append([0,0,start])
+else:
+    for i in range(len(draft_all_numbers)):
+        setlist_plans.append([0,0,draft_all_numbers[i]])
+print(1,len(setlist_plans))
+
+draft_setlist_plans = setlist_plans.copy()
+setlist_plans.clear()
+for setlist in draft_setlist_plans:
+    for i in [number for number in draft_all_numbers if number not in setlist]:
+        if member[setlist[-1]] & member[i] == set():
+            setlist_plans.append(setlist+[i])
+print(2,len(setlist_plans))
+
+draft_setlist_plans = setlist_plans.copy()
+setlist_plans.clear()
+for setlist in draft_setlist_plans:
+    for i in [number for number in draft_all_numbers if number not in setlist]:
+        if member[setlist[-1]] & member[i] == set():
+            if setlist[0] + len(member[setlist[-2]] & member[i]) <= max_quick_change:
+                setlist_plans.append([setlist[0] + len(member[setlist[-2]] & member[i])] + setlist[1:] + [i])
+print(3,len(setlist_plans))
+
+for k in range(len(all_numbers)-4):
+    draft_setlist_plans = setlist_plans.copy()
+    setlist_plans.clear()
+    for setlist in draft_setlist_plans:
+        for i in [number for number in draft_all_numbers if number not in setlist]:
+            if member[setlist[-1]] & member[i] == set():
+                if setlist[0] + len(member[setlist[-2]] & member[i]) <= max_quick_change:
+                    setlist_plans.append([setlist[0] + len(member[setlist[-2]] & member[i])] + [setlist[1] + len(member[setlist[-3]] & member[i])] + setlist[2:] + [i])
+    print(k+4,len(setlist_plans))
+
+draft_setlist_plans = setlist_plans.copy()
+setlist_plans.clear()
+if end != 'any':
+    for setlist in draft_setlist_plans:
+        if member[setlist[-1]] & member[end] == set():
+            if setlist[0] + len(member[setlist[-2]] & member[end]) <= max_quick_change:
+                setlist_plans.append([setlist[0] + len(member[setlist[-2]] & member[end])] + [setlist[1] + len(member[setlist[-3]] & member[end])] + setlist[2:] + [end])
+else:
+    for setlist in draft_setlist_plans:
+        for i in [number for number in all_numbers if number not in setlist]:
+            if member[setlist[-1]] & member[i] == set():
+                if setlist[0] + len(member[setlist[-2]] & member[i]) <= max_quick_change:
+                    setlist_plans.append([setlist[0] + len(member[setlist[-2]] & member[i])] + [setlist[1] + len(member[setlist[-3]] & member[i])] + setlist[2:] + [i])
+
+print(len(all_numbers),len(setlist_plans))
